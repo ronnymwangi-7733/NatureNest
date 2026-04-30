@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "313433710979",
+    "project_id": "naturenest-40d7a",
+    "storage_bucket": "naturenest-40d7a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:313433710979:android:46787be02ab85aada996b6",
+        "android_client_info": {
+          "package_name": "com.ronny.naturenest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaakEORSLayxJmcrm7DEDSvQPzbEwb1Wo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
