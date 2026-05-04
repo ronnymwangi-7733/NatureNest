@@ -59,6 +59,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // ✅ Add to dependencies (no version needed — BOM manages it)
+    implementation("androidx.compose.material:material-icons-extended")
 
     //Navigation
     implementation("androidx.navigation:navigation-runtime-ktx:2.9.4")

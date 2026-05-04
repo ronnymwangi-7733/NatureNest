@@ -1,7 +1,5 @@
 package com.ronny.naturenest.ui.screens.onboarding
 
-
-import android.inputmethodservice.Keyboard
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -22,7 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.ronny.naturenest.data.repository.NatureNestRepository
+import com.ronny.naturenest.models.NatureNestRepository
 import com.ronny.naturenest.navigation.ROUT_LOGIN
 import com.ronny.naturenest.navigation.ROUT_ONBOARDING
 import com.ronny.naturenest.navigation.ROUT_REGISTER
@@ -40,7 +38,7 @@ fun OnBoardingScreen(navController: NavController) {
     Column(modifier = Modifier.fillMaxSize()) {
 
         // Skip button
-        Keyboard.Row(
+        Row(                                          // ✅ Fixed: was Keyboard.Row
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -177,7 +175,6 @@ fun OnBoardingScreen(navController: NavController) {
             Spacer(Modifier.height(16.dp))
 
             if (pagerState.currentPage == pages.size - 1) {
-
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -187,7 +184,6 @@ fun OnBoardingScreen(navController: NavController) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
-
                     TextButton(
                         onClick = {
                             navController.navigate(ROUT_LOGIN) {

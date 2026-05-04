@@ -4,22 +4,20 @@ package com.ronny.naturenest.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.ronny.naturenest.ui.screens.about.AboutScreen
 import com.ronny.naturenest.ui.screens.article.ArticleDetailScreen
 import com.ronny.naturenest.ui.screens.auth.LoginScreen
 import com.ronny.naturenest.ui.screens.auth.RegisterScreen
 import com.ronny.naturenest.ui.screens.community.CommunityScreen
-import com.ronny.naturenest.ui.screens.health.HealthScreen
+import com.ronny.naturenest.ui.screens.health.HealthTipsScreen
 import com.ronny.naturenest.ui.screens.home.HomeScreen
 import com.ronny.naturenest.ui.screens.home.ProfileScreen
 import com.ronny.naturenest.ui.screens.nutrition.NutritionScreen
 import com.ronny.naturenest.ui.screens.onboarding.OnBoardingScreen
-import com.ronny.naturenest.ui.screens.reminder.ReminderScreen
+import com.ronny.naturenest.ui.screens.reminder.RemindersScreen
 import com.ronny.naturenest.ui.screens.splash.SplashScreen
 import com.ronny.naturenest.ui.screens.tracker.TrackerScreen
 
@@ -58,10 +56,10 @@ fun AppNavHost(
             TrackerScreen(navController = navController)
         }
         composable(ROUT_HEALTH) {
-            HealthScreen(navController = navController)
+            HealthTipsScreen(navController = navController)
         }
         composable(ROUT_REMINDER) {
-            ReminderScreen(navController = navController)
+            RemindersScreen(navController = navController)
         }
         composable(ROUT_COMMUNITY) {
             CommunityScreen(navController = navController)
@@ -73,17 +71,13 @@ fun AppNavHost(
             ProfileScreen(navController = navController)
         }
         composable(
-            route = ROUT_ARTICLE,
-            arguments = listOf(navArgument("tipId") { type = NavType.IntType })
-        ) { backStackEntry ->
-
-            val tipId = backStackEntry.arguments?.getInt("tipId") ?: 1
-
-            ArticleDetailScreen(
-                navController = navController,
-                tipId = tipId
-            )
+            route = ROUT_ARTICLE
+        ) {
+            ArticleDetailScreen(navController = navController)
         }
+
+
+
 
 
 
