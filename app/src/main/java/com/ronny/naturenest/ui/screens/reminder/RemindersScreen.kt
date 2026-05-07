@@ -3,8 +3,6 @@ package com.ronny.naturenest.ui.screens.reminder
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,11 +40,6 @@ fun RemindersScreen(navController: NavController) {
         topBar = {
             NatureNestTopBar(
                 title = "Reminders",
-                actions = {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, "Add reminder", tint = Blush)
-                    }
-                }
             )
         },
         bottomBar = {

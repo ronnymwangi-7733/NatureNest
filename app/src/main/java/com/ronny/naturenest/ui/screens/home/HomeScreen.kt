@@ -24,7 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import com.ronny.naturenest.navigation.ROUT_ARTICLE
 import com.ronny.naturenest.navigation.ROUT_COMMUNITY
 import com.ronny.naturenest.navigation.ROUT_HEALTH
-import com.ronny.naturenest.navigation.ROUT_PROFILE
+import com.ronny.naturenest.navigation.ROUT_NUTRITION
 import com.ronny.naturenest.navigation.ROUT_REMINDER
 import com.ronny.naturenest.navigation.ROUT_TRACKER
 import com.ronny.naturenest.ui.screens.components.CommunityPostCard
@@ -83,8 +83,9 @@ fun HomeScreen(navController: NavController) {
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = TextSecondary
                                 )
+                                val username = ""
                                 Text(
-                                    "Amina!",
+                                    "$username!",
                                     style = MaterialTheme.typography.displaySmall,
                                     color = TextPrimary,
                                     fontWeight = FontWeight.Bold
@@ -124,7 +125,13 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         QuickActionChip("📅", "Tracker", { navController.navigate(ROUT_TRACKER) }, BlushLight, BlushDark)
                         QuickActionChip("💊", "Reminders", { navController.navigate(ROUT_REMINDER) }, SageLight, SageDark)
-                        QuickActionChip("🥗", "Nutrition", { navController.navigate(ROUT_PROFILE) }, PeachLight, PeachDark)
+                        QuickActionChip(
+                            "🥗",
+                            "Nutrition",
+                            { navController.navigate(ROUT_NUTRITION) },
+                            PeachLight,
+                            PeachDark
+                        )
                         QuickActionChip("💬", "Community", { navController.navigate(ROUT_COMMUNITY) }, LavenderLight, DeepBrown)
                     }
                 }

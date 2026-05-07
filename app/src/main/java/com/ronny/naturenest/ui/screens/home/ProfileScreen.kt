@@ -21,6 +21,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ronny.naturenest.navigation.ROUT_LOGIN
 import com.ronny.naturenest.navigation.ROUT_PROFILE
+import com.ronny.naturenest.navigation.ROUT_ABOUT
+import com.ronny.naturenest.navigation.ROUT_BABY
+import com.ronny.naturenest.navigation.ROUT_COMMUNITY
+import com.ronny.naturenest.navigation.ROUT_HEALTH
+import com.ronny.naturenest.navigation.ROUT_HELP
+import com.ronny.naturenest.navigation.ROUT_POSTPARTUM
+import com.ronny.naturenest.navigation.ROUT_PRIVACY
+import com.ronny.naturenest.navigation.ROUT_REMINDER
 import com.ronny.naturenest.ui.screens.components.NatureNestBottomBar
 import com.ronny.naturenest.ui.screens.components.NatureNestTopBar
 import com.ronny.naturenest.ui.theme.*
@@ -32,7 +40,7 @@ fun ProfileScreen(navController: NavController) {
 
     Scaffold(
         containerColor = SurfaceCream,
-        topBar = { NatureNestTopBar(title = "My Profile") },
+        topBar = { NatureNestTopBar(title = "My Profile",) },
         bottomBar = {
             NatureNestBottomBar(
                 currentRoute = currentRoute,
@@ -76,8 +84,9 @@ fun ProfileScreen(navController: NavController) {
                         )
                     }
                     Spacer(Modifier.height(12.dp))
+                    val username = ""
                     Text(
-                        "Amina Mwangi",
+                        username,
                         style = MaterialTheme.typography.headlineMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -144,11 +153,12 @@ fun ProfileScreen(navController: NavController) {
 
             Spacer(Modifier.height(20.dp))
 
-            // Postpartum support section
+            // Postpartum support section — now clickable
             Card(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .clickable { navController.navigate(ROUT_POSTPARTUM) },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = LavenderLight),
                 elevation = CardDefaults.cardElevation(0.dp)
@@ -180,24 +190,64 @@ fun ProfileScreen(navController: NavController) {
 
             // Settings sections
             ProfileSection(title = "My Pregnancy") {
-                ProfileItem(Icons.Outlined.CalendarToday, "Pregnancy Details", "Week 20 · Due Feb 14")
-                ProfileItem(Icons.Outlined.ChildCare, "Baby Profile", "Set up baby's profile")
-                ProfileItem(Icons.Outlined.Favorite, "Health Records", "Track vitals & notes")
+                ProfileItem(
+                    icon = Icons.Outlined.CalendarToday,
+                    label = "Pregnancy Details",
+                    value = "Week 20 · Due Feb 14",
+                    onClick = { navController.navigate(ROUT_HEALTH) }
+                )
+                ProfileItem(
+                    icon = Icons.Outlined.ChildCare,
+                    label = "Baby Profile",
+                    value = "Set up baby's profile",
+                    onClick = { navController.navigate(ROUT_BABY) }
+                )
+                ProfileItem(
+                    icon = Icons.Outlined.Favorite,
+                    label = "Health Records",
+                    value = "Track vitals & notes",
+                    onClick = { navController.navigate(ROUT_HEALTH) }
+                )
             }
 
             Spacer(Modifier.height(8.dp))
 
             ProfileSection(title = "Notifications") {
-                ProfileItem(Icons.Outlined.Notifications, "Reminder Settings", "6 active reminders")
-                ProfileItem(Icons.Outlined.Campaign, "Community Alerts", "Mentions & replies")
+                ProfileItem(
+                    icon = Icons.Outlined.Notifications,
+                    label = "Reminder Settings",
+                    value = "6 active reminders",
+                    onClick = { navController.navigate(ROUT_REMINDER) }
+                )
+                ProfileItem(
+                    icon = Icons.Outlined.Campaign,
+                    label = "Community Alerts",
+                    value = "Mentions & replies",
+                    onClick = { navController.navigate(ROUT_COMMUNITY) }
+                )
             }
 
             Spacer(Modifier.height(8.dp))
 
             ProfileSection(title = "App") {
-                ProfileItem(Icons.Outlined.Lock, "Privacy & Safety", "")
-                ProfileItem(Icons.Outlined.HelpOutline, "Help & Support", "")
-                ProfileItem(Icons.Outlined.Info, "About NatureNest", "Version 1.0.0")
+                ProfileItem(
+                    icon = Icons.Outlined.Lock,
+                    label = "Privacy & Safety",
+                    value = "",
+                    onClick = { navController.navigate(ROUT_PRIVACY) }
+                )
+                ProfileItem(
+                    icon = Icons.Outlined.HelpOutline,
+                    label = "Help & Support",
+                    value = "",
+                    onClick = { navController.navigate(ROUT_HELP) }
+                )
+                ProfileItem(
+                    icon = Icons.Outlined.Info,
+                    label = "About NatureNest",
+                    value = "Version 1.0.0",
+                    onClick = { navController.navigate(ROUT_ABOUT) }
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -269,11 +319,11 @@ fun ProfileSection(title: String, content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun ProfileItem(icon: ImageVector, label: String, value: String) {
+fun ProfileItem(icon: ImageVector, label: String, value: String, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {}
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

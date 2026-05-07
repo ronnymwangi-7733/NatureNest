@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -40,11 +39,6 @@ fun CommunityScreen(navController: NavController) {
         topBar = {
             NatureNestTopBar(
                 title = "Community",
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Outlined.Search, "Search", tint = TextPrimary)
-                    }
-                }
             )
         },
         floatingActionButton = {

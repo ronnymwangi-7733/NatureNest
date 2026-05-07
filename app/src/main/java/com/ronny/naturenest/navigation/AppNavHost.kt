@@ -13,12 +13,16 @@ import com.ronny.naturenest.ui.screens.about.AboutScreen
 import com.ronny.naturenest.ui.screens.article.ArticleDetailScreen
 import com.ronny.naturenest.ui.screens.auth.LoginScreen
 import com.ronny.naturenest.ui.screens.auth.RegisterScreen
+import com.ronny.naturenest.ui.screens.baby.BabyProfileScreen
 import com.ronny.naturenest.ui.screens.community.CommunityScreen
 import com.ronny.naturenest.ui.screens.health.HealthTipsScreen
+import com.ronny.naturenest.ui.screens.help.HelpSupportScreen
 import com.ronny.naturenest.ui.screens.home.HomeScreen
 import com.ronny.naturenest.ui.screens.home.ProfileScreen
 import com.ronny.naturenest.ui.screens.nutrition.NutritionScreen
 import com.ronny.naturenest.ui.screens.onboarding.OnBoardingScreen
+import com.ronny.naturenest.ui.screens.postpartum.PostpartumScreen
+import com.ronny.naturenest.ui.screens.privacy.PrivacySafetyScreen
 import com.ronny.naturenest.ui.screens.reminder.RemindersScreen
 import com.ronny.naturenest.ui.screens.splash.SplashScreen
 import com.ronny.naturenest.ui.screens.tracker.TrackerScreen
@@ -28,7 +32,7 @@ import com.ronny.naturenest.ui.screens.tracker.TrackerScreen
 fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    startDestination: String = ROUT_HOME
+    startDestination: String = ROUT_SPLASH
 ) {
 
     NavHost(
@@ -36,8 +40,14 @@ fun AppNavHost(
         startDestination = startDestination,
         modifier = modifier
     ) {
-        composable(ROUT_HOME) {
-            HomeScreen(navController)
+        composable(
+            route = ROUT_HOME,
+            arguments = listOf(navArgument("username") { defaultValue = "Mama" })
+        ) { backStackEntry ->
+
+            val username = backStackEntry.arguments?.getString("username") ?: "Mama"
+
+            HomeScreen(navController = navController)
         }
         composable(ROUT_ABOUT) {
             AboutScreen(navController)
@@ -48,8 +58,14 @@ fun AppNavHost(
         composable(ROUT_ONBOARDING) {
             OnBoardingScreen(navController)
         }
-        composable(ROUT_LOGIN) {
-            LoginScreen(navController)
+        composable(
+            route = ROUT_LOGIN,
+            arguments = listOf(navArgument("username") { defaultValue = "" })
+        ) { backStackEntry ->
+
+            val username  = backStackEntry.arguments?.getString("username") ?: ""
+
+            LoginScreen(navController = navController)
         }
         composable(ROUT_REGISTER) {
             RegisterScreen(navController)
@@ -78,6 +94,18 @@ fun AppNavHost(
         ) { backStackEntry ->
             val tipId = backStackEntry.arguments?.getInt("tipId") ?: 1
             ArticleDetailScreen(navController = navController, tipId = tipId)
+        }
+        composable(ROUT_HELP) {
+            HelpSupportScreen(navController = navController)
+        }
+        composable(ROUT_POSTPARTUM) {
+            PostpartumScreen(navController = navController)
+        }
+        composable(ROUT_PRIVACY) {
+            PrivacySafetyScreen(navController = navController)
+        }
+        composable(ROUT_BABY) {
+            BabyProfileScreen(navController = navController)
         }
 
 

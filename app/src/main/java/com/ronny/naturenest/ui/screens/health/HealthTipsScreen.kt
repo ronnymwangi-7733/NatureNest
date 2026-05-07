@@ -17,6 +17,7 @@ import com.ronny.naturenest.models.NatureNestRepository
 import com.ronny.naturenest.models.TipCategory
 import com.ronny.naturenest.navigation.ROUT_ARTICLE
 import com.ronny.naturenest.navigation.ROUT_HEALTH
+import com.ronny.naturenest.ui.screens.ai.AiService
 import com.ronny.naturenest.ui.screens.components.HealthTipCard
 import com.ronny.naturenest.ui.screens.components.NatureNestBottomBar
 import com.ronny.naturenest.ui.screens.components.NatureNestTopBar
@@ -34,7 +35,7 @@ fun HealthTipsScreen(navController: NavController) {
 
     Scaffold(
         containerColor = SurfaceCream,
-        topBar = { NatureNestTopBar(title = "Health Tips") },
+        topBar = { NatureNestTopBar(title = "Health Tips",) },
         bottomBar = {
             NatureNestBottomBar(
                 currentRoute = currentRoute,
@@ -48,6 +49,7 @@ fun HealthTipsScreen(navController: NavController) {
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
+
             // Category filter row
             item {
                 Column(
@@ -59,13 +61,13 @@ fun HealthTipsScreen(navController: NavController) {
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
+
                     Spacer(Modifier.height(12.dp))
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
-                        // "All" chip
                         item {
                             FilterChip(
                                 selected = selectedCategory == null,
@@ -85,6 +87,7 @@ fun HealthTipsScreen(navController: NavController) {
                                 )
                             )
                         }
+
                         items(TipCategory.values()) { category ->
                             FilterChip(
                                 selected = selectedCategory == category,
@@ -107,10 +110,24 @@ fun HealthTipsScreen(navController: NavController) {
                             )
                         }
                     }
+
+                    // ✅ FIXED AI BUTTON (no null crash)
+                    Button(
+                        onClick = {
+                            val tip = filteredTips.firstOrNull()
+
+                            if (tip != null) {
+                                AiService.askAi("Explain this health tip: ${tip.title}") { answer ->
+                                    // show dialog or bottom sheet
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Chat with Mama AI 🤖")
+                    }
                 }
             }
 
-            // Article count
             item {
                 Text(
                     "${filteredTips.size} articles",
@@ -120,7 +137,6 @@ fun HealthTipsScreen(navController: NavController) {
                 )
             }
 
-            // Tip cards
             items(filteredTips, key = { it.id }) { tip ->
                 HealthTipCard(
                     tip = tip,
@@ -129,7 +145,6 @@ fun HealthTipsScreen(navController: NavController) {
                 )
             }
 
-            // Expert advice banner
             item {
                 Card(
                     modifier = Modifier
@@ -150,13 +165,17 @@ fun HealthTipsScreen(navController: NavController) {
                                 color = SageDark,
                                 fontWeight = FontWeight.Bold
                             )
+
                             Spacer(Modifier.height(4.dp))
+
                             Text(
                                 "Get personalized answers from certified midwives and OB-GYNs",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
+
                             Spacer(Modifier.height(12.dp))
+
                             Button(
                                 onClick = {},
                                 shape = RoundedCornerShape(10.dp),
@@ -170,6 +189,7 @@ fun HealthTipsScreen(navController: NavController) {
                                 )
                             }
                         }
+
                         Text("👩‍⚕️", fontSize = 52.sp)
                     }
                 }

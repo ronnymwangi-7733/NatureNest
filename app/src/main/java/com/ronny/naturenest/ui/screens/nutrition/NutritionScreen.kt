@@ -40,7 +40,7 @@ fun NutritionScreen(navController: NavController) {
 
     Scaffold(
         containerColor = SurfaceCream,
-        topBar = { NatureNestTopBar(title = "Nutrition & Wellness") },
+        topBar = { NatureNestTopBar(title = "Nutrition & Wellness",) },
         bottomBar = {
             NatureNestBottomBar(
                 currentRoute = currentRoute,

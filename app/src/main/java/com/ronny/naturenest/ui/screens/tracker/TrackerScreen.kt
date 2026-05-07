@@ -38,7 +38,6 @@ fun TrackerScreen(navController: NavController) {
         topBar = {
             NatureNestTopBar(
                 title = "Pregnancy Tracker",
-                showBack = false
             )
         },
         bottomBar = {
