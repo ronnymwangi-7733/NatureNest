@@ -44,6 +44,7 @@ android {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
@@ -57,6 +58,7 @@ dependencies {
 
     implementation(libs.firebase.auth)
     implementation(libs.firebase.database)
+    implementation(libs.firebase.firestore)
     implementation(libs.googleid)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -74,18 +76,13 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.4")
 
 
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.android.gms:play-services-auth:21.0.0")
-
-    apply(plugin = "com.google.gms.google-services")
-
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.github.ehsannarmani:compose-charts:0.0.8")
 
-
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
-
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation("androidx.biometric:biometric:1.1.0")
 
 
 }

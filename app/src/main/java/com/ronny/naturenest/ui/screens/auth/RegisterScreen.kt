@@ -27,6 +27,22 @@ import com.ronny.naturenest.navigation.ROUT_LOGIN
 import com.ronny.naturenest.navigation.ROUT_REGISTER
 import com.ronny.naturenest.ui.theme.*
 
+// ─── Validation helpers ────────────────────────────────────────────────────────
+
+private fun isValidEmail(email: String): Boolean =
+    android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
+
+private fun isValidPassword(password: String): Boolean =
+    password.length >= 6
+
+private fun isValidDueDate(date: String): Boolean {
+    // Expects MM/DD/YYYY
+    val regex = Regex("""^(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])/\d{4}$""")
+    return regex.matches(date.trim())
+}
+
+// ─── RegisterScreen ────────────────────────────────────────────────────────────
+
 @Composable
 fun RegisterScreen(navController: NavController) {
     var fullName by remember { mutableStateOf("") }
@@ -36,6 +52,39 @@ fun RegisterScreen(navController: NavController) {
     var selectedStage by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf("") }
 
+    // Track whether user has touched each field (so errors only show after interaction)
+    var nameTouched by remember { mutableStateOf(false) }
+    var emailTouched by remember { mutableStateOf(false) }
+    var passwordTouched by remember { mutableStateOf(false) }
+    var dueDateTouched by remember { mutableStateOf(false) }
+    var stageTouched by remember { mutableStateOf(false) }
+
+    // Error messages — empty string means no error
+    val nameError = if (nameTouched && fullName.isBlank()) "Full name is required" else ""
+    val emailError = when {
+        emailTouched && email.isBlank() -> "Email is required"
+        emailTouched && !isValidEmail(email) -> "Enter a valid email address"
+        else -> ""
+    }
+    val passwordError = when {
+        passwordTouched && password.isBlank() -> "Password is required"
+        passwordTouched && !isValidPassword(password) -> "Password must be at least 6 characters"
+        else -> ""
+    }
+    val stageError = if (stageTouched && selectedStage.isBlank()) "Please select your current stage" else ""
+    val dueDateError = when {
+        selectedStage == "Pregnant" && dueDateTouched && dueDate.isBlank() -> "Due date is required"
+        selectedStage == "Pregnant" && dueDateTouched && !isValidDueDate(dueDate) -> "Enter date as MM/DD/YYYY"
+        else -> ""
+    }
+
+    // Overall form validity gate
+    val isFormValid = fullName.isNotBlank()
+            && isValidEmail(email)
+            && isValidPassword(password)
+            && selectedStage.isNotBlank()
+            && (selectedStage != "Pregnant" || isValidDueDate(dueDate))
+
     val stages = listOf("Trying to Conceive", "Pregnant", "New Mom (0-12 months)", "Experienced Mom")
 
     Column(
@@ -44,7 +93,7 @@ fun RegisterScreen(navController: NavController) {
             .background(SurfaceCream)
             .verticalScroll(rememberScrollState())
     ) {
-        // Top header
+        // Top header — unchanged
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,15 +128,24 @@ fun RegisterScreen(navController: NavController) {
             // Full Name
             OutlinedTextField(
                 value = fullName,
-                onValueChange = { fullName = it },
+                onValueChange = {
+                    fullName = it
+                    nameTouched = true
+                },
                 label = { Text("Full Name") },
                 leadingIcon = { Icon(Icons.Outlined.Person, null, tint = Sage) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
+                isError = nameError.isNotEmpty(),
+                supportingText = {
+                    if (nameError.isNotEmpty()) Text(nameError, color = ErrorRed)
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Sage,
                     focusedLabelColor = Sage,
-                    unfocusedBorderColor = CreamDark
+                    unfocusedBorderColor = CreamDark,
+                    errorBorderColor = ErrorRed,
+                    errorLabelColor = ErrorRed
                 )
             )
             Spacer(Modifier.height(14.dp))
@@ -95,16 +153,25 @@ fun RegisterScreen(navController: NavController) {
             // Email
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    emailTouched = true
+                },
                 label = { Text("Email Address") },
                 leadingIcon = { Icon(Icons.Outlined.Email, null, tint = Sage) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                isError = emailError.isNotEmpty(),
+                supportingText = {
+                    if (emailError.isNotEmpty()) Text(emailError, color = ErrorRed)
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Sage,
                     focusedLabelColor = Sage,
-                    unfocusedBorderColor = CreamDark
+                    unfocusedBorderColor = CreamDark,
+                    errorBorderColor = ErrorRed,
+                    errorLabelColor = ErrorRed
                 )
             )
             Spacer(Modifier.height(14.dp))
@@ -112,7 +179,10 @@ fun RegisterScreen(navController: NavController) {
             // Password
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    passwordTouched = true
+                },
                 label = { Text("Password") },
                 leadingIcon = { Icon(Icons.Outlined.Lock, null, tint = Sage) },
                 trailingIcon = {
@@ -126,10 +196,16 @@ fun RegisterScreen(navController: NavController) {
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
+                isError = passwordError.isNotEmpty(),
+                supportingText = {
+                    if (passwordError.isNotEmpty()) Text(passwordError, color = ErrorRed)
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Sage,
                     focusedLabelColor = Sage,
-                    unfocusedBorderColor = CreamDark
+                    unfocusedBorderColor = CreamDark,
+                    errorBorderColor = ErrorRed,
+                    errorLabelColor = ErrorRed
                 )
             )
             Spacer(Modifier.height(20.dp))
@@ -151,7 +227,12 @@ fun RegisterScreen(navController: NavController) {
                     row.forEach { stage ->
                         val isSelected = selectedStage == stage
                         Surface(
-                            onClick = { selectedStage = stage },
+                            onClick = {
+                                selectedStage = stage
+                                stageTouched = true
+                                // Reset due date touch when switching away from Pregnant
+                                if (stage != "Pregnant") dueDateTouched = false
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             color = if (isSelected) SageLight else SurfaceWhite,
@@ -187,21 +268,41 @@ fun RegisterScreen(navController: NavController) {
                 Spacer(Modifier.height(10.dp))
             }
 
+            // Stage error shown below the grid
+            if (stageError.isNotEmpty()) {
+                Text(
+                    stageError,
+                    color = ErrorRed,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+            }
+
             // Due date (only for pregnant)
             if (selectedStage == "Pregnant") {
                 Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = dueDate,
-                    onValueChange = { dueDate = it },
+                    onValueChange = {
+                        dueDate = it
+                        dueDateTouched = true
+                    },
                     label = { Text("Due Date (MM/DD/YYYY)") },
                     leadingIcon = { Icon(Icons.Outlined.CalendarToday, null, tint = Sage) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = dueDateError.isNotEmpty(),
+                    supportingText = {
+                        if (dueDateError.isNotEmpty()) Text(dueDateError, color = ErrorRed)
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Sage,
                         focusedLabelColor = Sage,
-                        unfocusedBorderColor = CreamDark
+                        unfocusedBorderColor = CreamDark,
+                        errorBorderColor = ErrorRed,
+                        errorLabelColor = ErrorRed
                     )
                 )
                 Spacer(Modifier.height(14.dp))
@@ -211,15 +312,27 @@ fun RegisterScreen(navController: NavController) {
 
             Button(
                 onClick = {
-                    navController.navigate(ROUT_HOME) {
-                        popUpTo(ROUT_REGISTER) { inclusive = true }
+                    // Touch all fields to reveal any remaining errors
+                    nameTouched = true
+                    emailTouched = true
+                    passwordTouched = true
+                    stageTouched = true
+                    if (selectedStage == "Pregnant") dueDateTouched = true
+
+                    if (isFormValid) {
+                        navController.navigate(ROUT_HOME) {
+                            popUpTo(ROUT_REGISTER) { inclusive = true }
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Sage)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Blush,
+                    disabledContainerColor = Blush.copy(alpha = 0.5f)
+                )
             ) {
                 Text(
                     "Join NatureNest 🌿",

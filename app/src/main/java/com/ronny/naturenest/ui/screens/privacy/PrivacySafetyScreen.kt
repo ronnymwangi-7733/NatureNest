@@ -1,5 +1,13 @@
 package com.ronny.naturenest.ui.screens.privacy
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
@@ -13,41 +21,309 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionState
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import com.google.android.gms.location.LocationServices
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.ronny.naturenest.ui.screens.components.NatureNestTopBar
 import com.ronny.naturenest.ui.theme.*
 
+// ─── Firebase tip fetcher ──────────────────────────────────────────────────────
+//
+// Firestore structure expected:
+//   Collection: "tips"
+//   Document fields:
+//     - stage:      String  e.g. "Pregnant" | "New Mom (0-12 months)" | "Trying to Conceive" | "Experienced Mom"
+//     - preference: String  e.g. "nutrition" | "mental_health" | "exercise"  (optional)
+//     - text:       String  the tip content shown to the user
+//
+// The user profile is stored at: users/{uid}/profile/details
+//   Fields: stage (String), preferences (List<String>)
+
+private fun fetchPersonalisedTips(
+    db: FirebaseFirestore,
+    auth: FirebaseAuth,
+    onResult: (List<String>) -> Unit
+) {
+    val uid = auth.currentUser?.uid ?: return
+
+    db.collection("users").document(uid)
+        .collection("profile").document("details")
+        .get()
+        .addOnSuccessListener { profileDoc ->
+            val stage = profileDoc.getString("stage") ?: return@addOnSuccessListener
+            val preferences = (profileDoc.get("preferences") as? List<*>)
+                ?.filterIsInstance<String>() ?: emptyList()
+
+            db.collection("tips")
+                .whereEqualTo("stage", stage)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val tips = snapshot.documents
+                        .filter { doc ->
+                            val tipPref = doc.getString("preference")
+                            // include tip if it has no preference filter OR matches user's preferences
+                            tipPref == null || tipPref in preferences
+                        }
+                        .mapNotNull { it.getString("text") }
+                        .shuffled()
+                        .take(5)
+                    onResult(tips)
+                }
+        }
+}
+
+// ─── Biometric helper ──────────────────────────────────────────────────────────
+
+private fun launchBiometricPrompt(
+    context: Context,
+    onSuccess: () -> Unit,
+    onFailure: (String) -> Unit
+) {
+    val activity = context as? FragmentActivity ?: run {
+        onFailure("Biometric authentication requires a FragmentActivity context.")
+        return
+    }
+    val executor = ContextCompat.getMainExecutor(context)
+
+    val callback = object : BiometricPrompt.AuthenticationCallback() {
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            onSuccess()
+        }
+        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+            onFailure(errString.toString())
+        }
+        override fun onAuthenticationFailed() {
+            onFailure("Authentication failed. Please try again.")
+        }
+    }
+
+    val prompt = BiometricPrompt(activity, executor, callback)
+
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("NatureNest Biometric Login")
+        .setSubtitle("Use your fingerprint or face to unlock")
+        .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+        .build()
+
+    prompt.authenticate(promptInfo)
+}
+
+private fun isBiometricAvailable(context: Context): Boolean =
+    BiometricManager.from(context)
+        .canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+
+// ─── Open Google Maps for nearby clinics ──────────────────────────────────────
+
+private fun openNearbyHealthcarePlaces(context: Context, lat: Double, lng: Double) {
+    val query = Uri.encode("hospitals clinics near me")
+    val mapsUri = Uri.parse("geo:$lat,$lng?q=$query")
+    val mapsIntent = Intent(Intent.ACTION_VIEW, mapsUri).apply {
+        setPackage("com.google.android.apps.maps")
+    }
+    if (mapsIntent.resolveActivity(context.packageManager) != null) {
+        context.startActivity(mapsIntent)
+    } else {
+        // Fallback: open in browser
+        val browserUri = Uri.parse(
+            "https://www.google.com/maps/search/hospitals+clinics/@$lat,$lng,14z"
+        )
+        context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
+    }
+}
+
 // ─── PrivacySafetyScreen ───────────────────────────────────────────────────────
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PrivacySafetyScreen(navController: NavController) {
-    // Privacy toggles state
+    val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
+
+    val firebaseAuth = remember {
+        if (isPreview) null else try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+    }
+    val firestore = remember {
+        if (isPreview) null else try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+    }
+
+    // ── Toggle states ──
     var analyticsEnabled by remember { mutableStateOf(true) }
     var personalisedTipsEnabled by remember { mutableStateOf(true) }
     var communityVisibility by remember { mutableStateOf(true) }
     var locationEnabled by remember { mutableStateOf(false) }
     var crashReportsEnabled by remember { mutableStateOf(true) }
     var marketingEnabled by remember { mutableStateOf(false) }
-
-    // Security toggles
     var biometricEnabled by remember { mutableStateOf(false) }
     var twoFactorEnabled by remember { mutableStateOf(false) }
 
-    // Delete confirmation
+    // ── Dialog / feedback state ──
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showBiometricFeedbackDialog by remember { mutableStateOf(false) }
+    var biometricFeedback by remember { mutableStateOf("") }
+    var showLocationRationaleDialog by remember { mutableStateOf(false) }
+    var showTipsDialog by remember { mutableStateOf(false) }
+    var personalisedTips by remember { mutableStateOf<List<String>>(emptyList()) }
+    var tipsLoading by remember { mutableStateOf(false) }
+
+    // ── Location permission (Accompanist) ──
+    val locationPermission = if (isPreview) {
+        remember {
+            object : PermissionState {
+                override val permission: String = Manifest.permission.ACCESS_FINE_LOCATION
+                override val status: PermissionStatus = PermissionStatus.Denied(shouldShowRationale = false)
+                override fun launchPermissionRequest() {}
+            }
+        }
+    } else {
+        rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    // Helper: get location and open Maps
+    fun fetchLocationAndOpenMaps() {
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                val lat = location?.latitude ?: -1.286389  // Nairobi fallback
+                val lng = location?.longitude ?: 36.817223
+                openNearbyHealthcarePlaces(context, lat, lng)
+            }
+        } catch (_: SecurityException) {
+            locationEnabled = false
+        }
+    }
+
+    // ── Location toggle handler ──
+    fun handleLocationToggle(enabled: Boolean) {
+        locationEnabled = enabled
+        if (!enabled) return
+        when {
+            locationPermission.status.isGranted -> fetchLocationAndOpenMaps()
+            locationPermission.status.shouldShowRationale -> showLocationRationaleDialog = true
+            else -> locationPermission.launchPermissionRequest()
+        }
+    }
+
+    // Re-act when permission is granted after the request
+    LaunchedEffect(locationPermission.status.isGranted) {
+        if (locationPermission.status.isGranted && locationEnabled) {
+            fetchLocationAndOpenMaps()
+        }
+    }
+
+    // ── Personalised tips toggle handler ──
+    fun handlePersonalisedTipsToggle(enabled: Boolean) {
+        personalisedTipsEnabled = enabled
+        if (!enabled) return
+        tipsLoading = true
+        showTipsDialog = true
+
+        if (firestore != null && firebaseAuth != null) {
+            fetchPersonalisedTips(firestore, firebaseAuth) { tips ->
+                tipsLoading = false
+                personalisedTips = tips
+            }
+        } else {
+            // Provide mock tips for Preview or if Firebase is unavailable
+            tipsLoading = false
+            personalisedTips = listOf(
+                "Eat plenty of leafy greens for folic acid 🌿",
+                "Stay hydrated by drinking 8-10 glasses of water daily 💧",
+                "Take short walks to improve circulation and energy 🚶‍♀️"
+            )
+        }
+    }
+
+    // ── Biometric toggle handler ──
+    fun handleBiometricToggle(enable: Boolean) {
+        if (!enable) { biometricEnabled = false; return }
+        if (!isBiometricAvailable(context)) {
+            biometricFeedback = "No biometric hardware found or no fingerprint/face enrolled. " +
+                    "Please set one up in your device Settings first."
+            showBiometricFeedbackDialog = true
+            return
+        }
+        launchBiometricPrompt(
+            context = context,
+            onSuccess = {
+                biometricEnabled = true
+                biometricFeedback = "Biometric login enabled successfully! ✅"
+                showBiometricFeedbackDialog = true
+            },
+            onFailure = { error ->
+                biometricEnabled = false
+                biometricFeedback = "Could not enable biometric login: $error"
+                showBiometricFeedbackDialog = true
+            }
+        )
+    }
+
+    // ── Persist all toggle settings to Firestore ──
+    LaunchedEffect(
+        analyticsEnabled, personalisedTipsEnabled, communityVisibility,
+        locationEnabled, crashReportsEnabled, marketingEnabled,
+        biometricEnabled, twoFactorEnabled
+    ) {
+        if (isPreview) return@LaunchedEffect
+        val uid = firebaseAuth?.currentUser?.uid ?: return@LaunchedEffect
+        firestore?.collection("users")?.document(uid)
+            ?.collection("settings")?.document("privacy")
+            ?.set(mapOf(
+                "analyticsEnabled" to analyticsEnabled,
+                "personalisedTipsEnabled" to personalisedTipsEnabled,
+                "communityVisibility" to communityVisibility,
+                "locationEnabled" to locationEnabled,
+                "crashReportsEnabled" to crashReportsEnabled,
+                "marketingEnabled" to marketingEnabled,
+                "biometricEnabled" to biometricEnabled,
+                "twoFactorEnabled" to twoFactorEnabled
+            ))
+    }
+
+    // ── Load saved settings from Firestore on first open ──
+    LaunchedEffect(Unit) {
+        if (isPreview) return@LaunchedEffect
+        val uid = firebaseAuth?.currentUser?.uid ?: return@LaunchedEffect
+        firestore?.collection("users")?.document(uid)
+            ?.collection("settings")?.document("privacy")
+            ?.get()
+            ?.addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    analyticsEnabled = doc.getBoolean("analyticsEnabled") ?: true
+                    personalisedTipsEnabled = doc.getBoolean("personalisedTipsEnabled") ?: true
+                    communityVisibility = doc.getBoolean("communityVisibility") ?: true
+                    locationEnabled = doc.getBoolean("locationEnabled") ?: false
+                    crashReportsEnabled = doc.getBoolean("crashReportsEnabled") ?: true
+                    marketingEnabled = doc.getBoolean("marketingEnabled") ?: false
+                    biometricEnabled = doc.getBoolean("biometricEnabled") ?: false
+                    twoFactorEnabled = doc.getBoolean("twoFactorEnabled") ?: false
+                }
+            }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // UI — pixel-identical to the original
+    // ══════════════════════════════════════════════════════════════════════════
 
     Scaffold(
         containerColor = SurfaceCream,
-        topBar = {
-            NatureNestTopBar(
-                title = "Privacy & Safety"
-            )
-        }
+        topBar = { NatureNestTopBar(title = "Privacy & Safety") }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -106,7 +382,7 @@ fun PrivacySafetyScreen(navController: NavController) {
                     title = "Personalised Tips",
                     subtitle = "Receive tips tailored to your pregnancy stage and preferences",
                     checked = personalisedTipsEnabled,
-                    onCheckedChange = { personalisedTipsEnabled = it }
+                    onCheckedChange = { handlePersonalisedTipsToggle(it) }
                 )
                 Divider(color = BlushLight.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
                 PrivacyToggleItem(
@@ -122,7 +398,7 @@ fun PrivacySafetyScreen(navController: NavController) {
                     title = "Location Access",
                     subtitle = "Used to find nearby healthcare providers and clinics",
                     checked = locationEnabled,
-                    onCheckedChange = { locationEnabled = it }
+                    onCheckedChange = { handleLocationToggle(it) }
                 )
                 Divider(color = BlushLight.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
                 PrivacyToggleItem(
@@ -151,7 +427,7 @@ fun PrivacySafetyScreen(navController: NavController) {
                     title = "Biometric Login",
                     subtitle = "Use fingerprint or face unlock to access the app",
                     checked = biometricEnabled,
-                    onCheckedChange = { biometricEnabled = it }
+                    onCheckedChange = { handleBiometricToggle(it) }
                 )
                 Divider(color = BlushLight.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
                 PrivacyToggleItem(
@@ -200,11 +476,9 @@ fun PrivacySafetyScreen(navController: NavController) {
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Data encryption badge ──
+            // ── Encryption badge ──
             Card(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8E9)),
                 elevation = CardDefaults.cardElevation(0.dp),
@@ -248,10 +522,7 @@ fun PrivacySafetyScreen(navController: NavController) {
                 ) {
                     Column {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { }
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().clickable { }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Outlined.DeleteSweep, null, tint = ErrorRed, modifier = Modifier.size(20.dp))
@@ -264,10 +535,7 @@ fun PrivacySafetyScreen(navController: NavController) {
                         }
                         Divider(color = ErrorRed.copy(alpha = 0.1f))
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showDeleteDialog = true }
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().clickable { showDeleteDialog = true }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Outlined.PersonOff, null, tint = ErrorRed, modifier = Modifier.size(20.dp))
@@ -286,7 +554,7 @@ fun PrivacySafetyScreen(navController: NavController) {
         }
     }
 
-    // ── Delete confirmation dialog ──
+    // ── Delete dialog — unchanged ──
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -294,12 +562,7 @@ fun PrivacySafetyScreen(navController: NavController) {
             shape = RoundedCornerShape(20.dp),
             icon = { Icon(Icons.Default.Warning, null, tint = ErrorRed, modifier = Modifier.size(32.dp)) },
             title = {
-                Text(
-                    "Delete Account?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    textAlign = TextAlign.Center
-                )
+                Text("Delete Account?", style = MaterialTheme.typography.titleMedium, color = TextPrimary, textAlign = TextAlign.Center)
             },
             text = {
                 Text(
@@ -325,9 +588,116 @@ fun PrivacySafetyScreen(navController: NavController) {
             }
         )
     }
+
+    // ── Biometric feedback dialog ──
+    if (showBiometricFeedbackDialog) {
+        AlertDialog(
+            onDismissRequest = { showBiometricFeedbackDialog = false },
+            containerColor = SurfaceWhite,
+            shape = RoundedCornerShape(20.dp),
+            icon = {
+                Icon(
+                    if (biometricEnabled) Icons.Default.Fingerprint else Icons.Default.Warning,
+                    null,
+                    tint = if (biometricEnabled) Color(0xFF4CAF50) else ErrorRed,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    if (biometricEnabled) "Biometric Enabled" else "Biometric Unavailable",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Text(biometricFeedback, style = MaterialTheme.typography.bodySmall, color = TextSecondary, textAlign = TextAlign.Center)
+            },
+            confirmButton = {
+                TextButton(onClick = { showBiometricFeedbackDialog = false }) { Text("OK", color = Blush) }
+            }
+        )
+    }
+
+    // ── Location rationale dialog ──
+    if (showLocationRationaleDialog) {
+        AlertDialog(
+            onDismissRequest = { showLocationRationaleDialog = false },
+            containerColor = SurfaceWhite,
+            shape = RoundedCornerShape(20.dp),
+            icon = { Icon(Icons.Outlined.LocationOn, null, tint = Blush, modifier = Modifier.size(32.dp)) },
+            title = {
+                Text("Location Permission Needed", style = MaterialTheme.typography.titleMedium, color = TextPrimary, textAlign = TextAlign.Center)
+            },
+            text = {
+                Text(
+                    "NatureNest needs your location to find nearby healthcare providers and clinics. Your location is never stored or shared with third parties.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showLocationRationaleDialog = false; locationPermission.launchPermissionRequest() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Blush),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Allow Location") }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { locationEnabled = false; showLocationRationaleDialog = false },
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, BlushLight)
+                ) { Text("Not Now", color = TextHint) }
+            }
+        )
+    }
+
+    // ── Personalised tips dialog ──
+    if (showTipsDialog) {
+        AlertDialog(
+            onDismissRequest = { showTipsDialog = false },
+            containerColor = SurfaceWhite,
+            shape = RoundedCornerShape(20.dp),
+            icon = { Text("✨", fontSize = 32.sp) },
+            title = {
+                Text("Your Personalised Tips", style = MaterialTheme.typography.titleMedium, color = TextPrimary, textAlign = TextAlign.Center)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (tipsLoading) {
+                        CircularProgressIndicator(
+                            color = Blush,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    } else if (personalisedTips.isEmpty()) {
+                        Text(
+                            "No tips found for your profile yet. Make sure your pregnancy stage and preferences are set up in your profile.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        personalisedTips.forEach { tip ->
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                                Text("🌿", fontSize = 14.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(tip, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTipsDialog = false }) { Text("Got it", color = Blush) }
+            }
+        )
+    }
 }
 
-// ─── Reusable section wrapper ──────────────────────────────────────────────────
+// ─── Reusable section wrapper — unchanged ─────────────────────────────────────
 
 @Composable
 private fun PrivacySection(title: String, content: @Composable ColumnScope.() -> Unit) {
@@ -349,7 +719,7 @@ private fun PrivacySection(title: String, content: @Composable ColumnScope.() ->
     }
 }
 
-// ─── Toggle row ────────────────────────────────────────────────────────────────
+// ─── Toggle row — unchanged ────────────────────────────────────────────────────
 
 @Composable
 private fun PrivacyToggleItem(
@@ -385,7 +755,7 @@ private fun PrivacyToggleItem(
     }
 }
 
-// ─── Nav row (no toggle) ───────────────────────────────────────────────────────
+// ─── Nav row — unchanged ──────────────────────────────────────────────────────
 
 @Composable
 private fun PrivacyNavItem(icon: ImageVector, title: String, subtitle: String) {
